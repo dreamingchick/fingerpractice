@@ -17,14 +17,15 @@ export async function POST(r:Request){
  try {
  const db=env.DB!; const b=await r.json() as {action:string,id?:string,ms?:number,nickname?:string};const pid=player(r)||crypto.randomUUID();const now=Date.now();
  if(b.action==="start"){
- const last=await db.prepare("SELECT started FROM attempts WHERE player=? ORDER BY started DESC LIMIT 1").bind(pid).first<{started:number}>();
- if(last && now-last.started<1500)return json({error:"잠시 후 다시 시작해 주세요."},429);
+ const recent=await db.prepare("SELECT MAX(started) last, COUNT(*) attempts FROM attempts WHERE player=? AND started >= ?").bind(pid,now-60000).first<{last:number|null,attempts:number}>();
+ if(recent?.last && now-recent.last<1500)return json({error:"잠시 후 다시 시작해 주세요."},429);
+ if((recent?.attempts??0)>=10)return json({error:"1분간 도전 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요."},429);
  const id=crypto.randomUUID(); await db.prepare("INSERT INTO attempts(id,player,started) VALUES(?,?,?)").bind(id,pid,now).run();
  return json({id},200,{"Set-Cookie":`zero_player=${pid}; Path=/; HttpOnly; ${new URL(r.url).protocol==="https:"?"Secure; ":""}SameSite=Lax; Max-Age=31536000`});
  }
  if(b.action!=="submit" || !player(r))return json({error:"유효한 도전이 없습니다."},400);
  const ms=b.ms; const nickname=typeof b.nickname==="string"?b.nickname.trim().normalize("NFC"):"";
- if(!Number.isInteger(ms)||ms!<MIN_REACTION_MS||ms!>30000||!nickname||[...nickname].length>12||/[\p{C}<>]/u.test(nickname))return json({error:"닉네임(1~12자)과 기록(101ms 이상)을 확인해 주세요."},400);
+ if(!Number.isInteger(ms)||ms!<MIN_REACTION_MS||ms!>30000||!nickname||[...nickname].length>12||/[\p{C}<>]/u.test(nickname))return json({error:"닉네임(1~12자)과 기록(0ms 이상)을 확인해 주세요."},400);
  const day=new Date(now+9*3600000).toISOString().slice(0,10);
  const row=await db.prepare("UPDATE attempts SET finished=?,reaction=?,nickname=?,day=? WHERE id=? AND player=? AND finished IS NULL AND started <= ? AND started >= ? RETURNING id").bind(now,ms,nickname,day,b.id||"",pid,now-10000-ms!,now-120000).first();
  if(!row)return json({error:"이미 등록했거나 유효 시간이 지난 도전입니다."},409);
