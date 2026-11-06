@@ -9,9 +9,12 @@ import { connectorPreview } from "./scripts/vite/connector-preview-plugin.mjs";
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
 
-// The placeholder is for local previews only. In Cloudflare Workers Builds,
-// set D1_DATABASE_ID to the real ID copied from the D1 database dashboard.
-const configuredD1DatabaseId = process.env.D1_DATABASE_ID?.trim();
+// Local previews use the placeholder unless D1_DATABASE_ID is set.
+// Cloudflare Workers Builds use the configured production D1 database by default.
+const CLOUDFLARE_BUILDS_DATABASE_ID = "ac7d02cd-55b9-46b7-bce5-5acd1cc8370b";
+const configuredD1DatabaseId =
+  process.env.D1_DATABASE_ID?.trim() ||
+  (process.env.WORKERS_CI === "1" ? CLOUDFLARE_BUILDS_DATABASE_ID : undefined);
 if (configuredD1DatabaseId && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(configuredD1DatabaseId)) {
   throw new Error("D1_DATABASE_ID must be a valid Cloudflare D1 database UUID.");
 }
@@ -31,7 +34,7 @@ const localBindingConfig = {
         {
           binding: d1,
           database_name: configuredD1DatabaseId
-            ? process.env.D1_DATABASE_NAME?.trim() || "fingerpractice-rankings"
+            ? process.env.D1_DATABASE_NAME?.trim() || "fingerpractice-db"
             : "site-creator-d1",
           database_id: configuredD1DatabaseId || SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
