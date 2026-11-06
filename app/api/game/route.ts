@@ -10,7 +10,7 @@ export async function GET(r:Request){
  const rows=await db.prepare(`WITH best AS (SELECT *, ROW_NUMBER() OVER(PARTITION BY player ORDER BY reaction, finished) rn FROM attempts WHERE reaction >= ${MIN_REACTION_MS} ${daily?"AND day = ?":""}), ranked AS (SELECT nickname,reaction,player,RANK() OVER(ORDER BY reaction) rank FROM best WHERE rn=1) SELECT nickname,reaction,rank, CASE WHEN player=? THEN 1 ELSE 0 END mine FROM ranked ORDER BY reaction,rank LIMIT 50`).bind(...(daily?[today,player(r)||""]:[player(r)||""])).all();
  const mine=await db.prepare(`SELECT MIN(reaction) best FROM attempts WHERE player=? AND reaction >= ${MIN_REACTION_MS} ${daily?"AND day=?":""}`).bind(...(daily?[player(r)||"",today]:[player(r)||""])).first();
  return json({rows:rows.results,best:mine?.best??null});
- } catch {return json({error:"랭킹을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."},503)}
+ } catch (error) { console.error("[fingerpractice] ranking GET failed", error); return json({error:"랭킹을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."},503)}
 }
 export async function POST(r:Request){
  if(r.headers.get("origin") && r.headers.get("origin")!==new URL(r.url).origin) return json({error:"허용되지 않은 요청입니다."},403);
@@ -29,5 +29,5 @@ export async function POST(r:Request){
  const row=await db.prepare("UPDATE attempts SET finished=?,reaction=?,nickname=?,day=? WHERE id=? AND player=? AND finished IS NULL AND started <= ? AND started >= ? RETURNING id").bind(now,ms,nickname,day,b.id||"",pid,now-10000-ms!,now-120000).first();
  if(!row)return json({error:"이미 등록했거나 유효 시간이 지난 도전입니다."},409);
  return json({ok:true});
- }catch{return json({error:"서버 연결에 실패했습니다. 다시 시도해 주세요."},503)}
+ }catch(error){console.error("[fingerpractice] game POST failed", error);return json({error:"서버 연결에 실패했습니다. 다시 시도해 주세요."},503)}
 }
