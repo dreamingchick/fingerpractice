@@ -1,22 +1,29 @@
 "use client";
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, ArrowRight, RotateCcw, Trophy, Crosshair, X, Check, Share2 } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, RotateCcw, Trophy, Crosshair, X, Check, Share2, Smartphone } from 'lucide-react';
+import {supportsMobilePlay} from '../lib/mobile-access.mjs';
 import {judge, remaining, MIN_REACTION_MS} from '../lib/timing.mjs';
 type Phase='idle'|'loading'|'waiting'|'go'|'success'|'cancelled';
 type Row={nickname:string,reaction:number,rank:number,mine:number};
 export default function Home(){
  const [phase,setPhase]=useState<Phase>('idle'), [count,setCount]=useState(10),[ms,setMs]=useState(0),[best,setBest]=useState<number|null>(null),[recent,setRecent]=useState<number[]>([]),[nickname,setNickname]=useState(''),[period,setPeriod]=useState('today'),[rows,setRows]=useState<Row[]>([]),[rankBest,setRankBest]=useState<number|null>(null),[rankStatus,setRankStatus]=useState('loading'),[notice,setNotice]=useState(''),[saved,setSaved]=useState(false),[saving,setSaving]=useState(false),[help,setHelp]=useState(false);
  const state=useRef<Phase>('idle'),deadline=useRef(0),attempt=useRef(''),frame=useRef(0),gen=useRef(0),saveLock=useRef(false);
+ const [deviceStatus,setDeviceStatus]=useState<'checking'|'allowed'|'blocked'>('checking');
  const proof=useRef<Promise<boolean>|null>(null);
  const [verifying,setVerifying]=useState(false);
+ useEffect(()=>{
+  const coarse=window.matchMedia?.('(pointer: coarse)').matches ?? false;
+  const allowed=supportsMobilePlay({userAgent:navigator.userAgent,touchPoints:navigator.maxTouchPoints||0,coarsePointer:coarse});
+  setDeviceStatus(allowed?'allowed':'blocked');
+ },[]);
  const active=phase==='waiting'||phase==='go';
  function change(p:Phase){state.current=p;setPhase(p)}
  async function ranks(p=period){setRankStatus('loading');try{const r=await fetch('/api/game?period='+p);const b=await r.json() as {error?:string,rows:Row[],best:number|null};if(!r.ok)throw Error(b.error);setRows(b.rows);setRankBest(b.best);setRankStatus('ok')}catch{setRankStatus('error')}}
- useEffect(()=>{try{setNickname(localStorage.getItem('zero-name')||'');const b=localStorage.getItem('zero-best');if(b!==null&&Number.isFinite(+b)&&+b>=MIN_REACTION_MS)setBest(+b);setRecent(JSON.parse(localStorage.getItem('zero-recent')||'[]').filter((v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>=MIN_REACTION_MS).slice(0,5))}catch{};const cancel=()=>{if(document.hidden||!document.hasFocus()){if(['waiting','go','loading'].includes(state.current)){gen.current++;cancelAnimationFrame(frame.current);change('cancelled');setNotice('화면을 벗어나 도전이 취소되었습니다.')}}};document.addEventListener('visibilitychange',cancel);window.addEventListener('blur',cancel);return()=>{gen.current++;cancelAnimationFrame(frame.current);document.removeEventListener('visibilitychange',cancel);window.removeEventListener('blur',cancel)}},[]);
- useEffect(()=>{ranks(period)},[period]);
- async function start(){if(['waiting','go','loading'].includes(state.current))return;change('loading');setNotice('');setSaved(false);setVerifying(false);proof.current=null;setCount(10);const g=++gen.current;try{const r=await fetch('/api/game',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})});const b=await r.json() as {error?:string,id:string};if(!r.ok)throw Error(b.error);if(gen.current!==g)return;attempt.current=b.id;deadline.current=performance.now()+10000;change('waiting');const tick=()=>{if(!['waiting','go'].includes(state.current))return;const now=performance.now();setCount(remaining(deadline.current,now));if(now>=deadline.current&&state.current==='waiting')change('go');if(now-deadline.current>30000){change('cancelled');setNotice('입력 시간이 지났습니다. 다시 도전해 주세요.');return}frame.current=requestAnimationFrame(tick)};frame.current=requestAnimationFrame(tick)}catch(e){if(gen.current===g){change('idle');setNotice(e instanceof Error?e.message:'연결에 실패했습니다.')}}}
+ useEffect(()=>{if(deviceStatus!=='allowed')return;try{setNickname(localStorage.getItem('zero-name')||'');const b=localStorage.getItem('zero-mobile-v1-best');if(b!==null&&Number.isFinite(+b)&&+b>=MIN_REACTION_MS)setBest(+b);setRecent(JSON.parse(localStorage.getItem('zero-mobile-v1-recent')||'[]').filter((v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>=MIN_REACTION_MS).slice(0,5))}catch{};const cancel=()=>{if(document.hidden||!document.hasFocus()){if(['waiting','go','loading'].includes(state.current)){gen.current++;cancelAnimationFrame(frame.current);change('cancelled');setNotice('화면을 벗어나 도전이 취소되었습니다.')}}};document.addEventListener('visibilitychange',cancel);window.addEventListener('blur',cancel);return()=>{gen.current++;cancelAnimationFrame(frame.current);document.removeEventListener('visibilitychange',cancel);window.removeEventListener('blur',cancel)}},[deviceStatus]);
+ useEffect(()=>{if(deviceStatus==='allowed')ranks(period)},[period,deviceStatus]);
+ async function start(){if(deviceStatus!=='allowed'||['waiting','go','loading'].includes(state.current))return;change('loading');setNotice('');setSaved(false);setVerifying(false);proof.current=null;setCount(10);const g=++gen.current;try{const r=await fetch('/api/game',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'start'})});const b=await r.json() as {error?:string,id:string};if(!r.ok)throw Error(b.error);if(gen.current!==g)return;attempt.current=b.id;deadline.current=performance.now()+10000;change('waiting');const tick=()=>{if(!['waiting','go'].includes(state.current))return;const now=performance.now();setCount(remaining(deadline.current,now));if(now>=deadline.current&&state.current==='waiting')change('go');if(now-deadline.current>30000){change('cancelled');setNotice('입력 시간이 지났습니다. 다시 도전해 주세요.');return}frame.current=requestAnimationFrame(tick)};frame.current=requestAnimationFrame(tick)}catch(e){if(gen.current===g){change('idle');setNotice(e instanceof Error?e.message:'연결에 실패했습니다.')}}}
  function hit(at:number){
-  if(!['waiting','go'].includes(state.current))return;
+  if(deviceStatus!=='allowed'||!['waiting','go'].includes(state.current))return;
   const result=judge(deadline.current,at);
   if(result.kind==='ignored')return;
   cancelAnimationFrame(frame.current);
@@ -24,7 +31,7 @@ export default function Home(){
   setMs(result.ms);change('success');
   const next=[result.ms,...recent].slice(0,5);setRecent(next);
   const pb=best===null?result.ms:Math.min(best,result.ms);setBest(pb);
-  try{localStorage.setItem('zero-best',String(pb));localStorage.setItem('zero-recent',JSON.stringify(next))}catch{}
+  try{localStorage.setItem('zero-mobile-v1-best',String(pb));localStorage.setItem('zero-mobile-v1-recent',JSON.stringify(next))}catch{}
   const currentId=attempt.current;
   setVerifying(true);
   // Capture the result at the time of the touch, not after nickname entry.
@@ -43,7 +50,7 @@ export default function Home(){
   })();
  }
  async function save(){
-  if(saveLock.current||saved||phase!=='success')return;
+  if(deviceStatus!=='allowed'||saveLock.current||saved||phase!=='success')return;
   const name=nickname.trim();
   if(!name||[...name].length>12){setNotice('닉네임을 1~12자로 입력해 주세요.');return}
   saveLock.current=true;setSaving(true);setNotice('');
@@ -60,13 +67,23 @@ export default function Home(){
  }
  async function share(){const text=`찰나의 해적 · 나의 0초 타이밍 기록 ${ms}ms. 10초의 기다림, 승부는 그다음 찰나.`;try{if(navigator.share)await navigator.share({title:'찰나의 해적',text,url:location.href});else{await navigator.clipboard.writeText(text+' '+location.href);setNotice('기록과 주소를 복사했습니다.')}}catch{setNotice('공유가 취소되었거나 지원되지 않습니다.')}}
  const label=phase==='waiting'?String(count).padStart(2,'0'):phase==='go'?'지금!':phase==='success'?String(ms):phase==='cancelled'?'다시 한번':phase==='loading'?'준비 중':'00';
+ if(deviceStatus!=='allowed')return <main className="device-only-page">
+  <header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span></header>
+  <section className="device-only-panel" role={deviceStatus==='blocked'?'alert':'status'}>
+   <div className="device-only-icon"><Smartphone size={40}/></div>
+   {deviceStatus==='checking'
+    ? <><h1>접속 환경을 확인하고 있습니다.</h1><p>기기 유형을 확인한 뒤 게임 화면을 표시합니다.</p></>
+    : <><div className="device-only-eyebrow">MOBILE ONLY</div><h1>이 게임은 모바일에서만 플레이할 수 있습니다.</h1><p>스마트폰 또는 태블릿의 터치 브라우저로 접속해 주세요.<br/>PC에서는 게임 플레이와 랭킹 등록을 이용할 수 없습니다.</p></>}
+  </section>
+  <footer><span>찰나의 해적</span><p>작은 숫자, 커다란 승부.</p></footer>
+ </main>;
  return <main><header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span><button className="help" onClick={()=>setHelp(!help)}>플레이 방법 <span>↗</span></button></header>
  <div className="intro"><div className="eyebrow"><span/> TEN SECONDS. ONE MOMENT.</div><h1>찰나의 <em>해적</em></h1><p>0초가 되는 순간, 단 한 번의 터치.<br className="mobile"/> 당신의 타이밍은 몇 밀리초인가요?</p></div>
  {help&&<aside className="instructions"><button onClick={()=>setHelp(false)} aria-label="설명 닫기"><X size={18}/></button><strong>기다리고, 한 번만 터치하세요.</strong><p>도전 시작 → 10초 카운트다운 → 0초 이후 중앙 원 터치. 0초 이전의 터치는 무시되고, 0초부터 새로 누른 첫 터치가 기록됩니다. 최소 101ms 제한은 없으며 0ms 기록도 유효합니다. 기록은 0초를 기준으로 밀리초 단위로 계산합니다. 미리 누르고 있어도 기록되지 않으며, 0초 이후 새로 눌러야 합니다. 화면을 벗어나면 취소됩니다. 기록이 작을수록 높은 순위입니다. 고정 카운트다운이므로 예측하는 타이밍 감각도 포함됩니다.</p></aside>}
  <div className="layout"><section className={'arena '+(phase==='go'?'ready':'')}>
  <div className="arena-top"><span><Crosshair size={15}/> PIRATE CHALLENGE</span><span className="live-dot">{active?'도전 진행 중':'10초 타이밍'}</span></div>
  <div className="play-area"><div className="status" aria-live="polite">{phase==='waiting'?'아직이에요. 0초까지 기다리세요.':phase==='go'?'지금 터치하세요!':phase==='success'?'기록 측정 완료':phase==='cancelled'?'도전이 취소되었습니다':'가장 짧은 순간을 잡아보세요'}</div>
- <button className={'target '+(active?'active':'')} aria-label="0초 이후 이 원을 터치하세요" disabled={!active} onPointerDown={e=>{e.preventDefault();if(e.isTrusted&&e.isPrimary)hit(performance.now())}} onClick={e=>{if(e.detail===0&&e.isTrusted)hit(performance.now())}}>
+ <button className={'target '+(active?'active':'')} aria-label="0초 이후 이 원을 터치하세요" disabled={!active} onPointerDown={e=>{e.preventDefault();if(e.isTrusted&&e.isPrimary&&e.pointerType==='touch')hit(performance.now())}}>
  <span className="target-inner"><span className={'digits '+(['cancelled','loading'].includes(phase)?'small':'')}>{label}</span><span className="unit">{phase==='success'?'MILLISECONDS':phase==='waiting'?'SECONDS LEFT':phase==='go'?'TOUCH NOW':'READY FOR ZERO'}</span></span></button>
  <p className="target-caption">{phase==='success'?`${(ms/1000).toFixed(3)}초, 당신이 잡아낸 찰나.`:'0초 이후 첫 터치부터 기록 · 101ms 하한 없음'}</p>
  </div>
