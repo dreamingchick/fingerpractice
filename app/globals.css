@@ -12,3 +12,82 @@
 .device-only-panel p{font-size:14px;line-height:1.9;color:var(--muted);margin:0}
 .device-only-page footer{width:100%;flex-shrink:0}
 @media(max-width:760px){.device-only-panel{min-height:360px;padding:40px 22px}.device-only-panel p{font-size:12px}.device-only-page footer{margin-top:28px}}
+
+
+/* Crystal touch artwork v3 — the illustration replaces the old circular button. */
+.crystal-stage {
+  position: relative;
+  width: min(76vw, 286px);
+  max-width: 100%;
+  aspect-ratio: 900 / 1172;
+  margin: 12px auto 8px;
+  flex: none;
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.crystal-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,.32));
+}
+.crystal-clock {
+  position: absolute;
+  z-index: 2;
+  top: 8.65%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20.8%;
+  height: 12.8%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 32% 20%, #f3f8fc 0%, #dee8f1 54%, #ccdae6 100%);
+  box-shadow: inset 0 0 6px #e9f5ff77;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #181d23;
+  pointer-events: none;
+  font-family: Arial, "Noto Sans KR", sans-serif;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 #fff;
+}
+.crystal-clock span {
+  font-size: clamp(23px, 7.3vw, 32px);
+  font-weight: 950;
+  letter-spacing: -1.1px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.crystal-clock.clock-len-3 span {font-size: clamp(19px, 5.5vw, 25px);}
+.crystal-clock.clock-len-4 span {font-size: clamp(15px, 4.5vw, 20px);}
+.crystal-clock.clock-len-5 span {font-size: clamp(12px, 3.5vw, 16px);}
+.crystal-clock.is-result {color: #075a77;}
+.crystal-hitbox {
+  position: absolute;
+  z-index: 3;
+  top: 28%;
+  left: 0;
+  width: 100%;
+  height: 70%;
+  border: 0;
+  padding: 0;
+  border-radius: 10%;
+  background: transparent;
+  box-shadow: none;
+  outline-offset: 3px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.crystal-hitbox:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.crystal-hitbox:focus-visible {outline: 2px solid var(--lime);}
+@media(max-width:350px) {
+  .crystal-stage {width: min(75vw, 265px);}
+}
