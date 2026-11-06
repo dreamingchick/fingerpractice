@@ -1,4 +1,6 @@
 import { env } from "cloudflare:workers";
+import { isMobileRequest } from "../../../lib/mobile-access.mjs";
+import { mobileRankingCutoff } from "../../../lib/mobile-ranking.mjs";
 import {
   hitStartWindow, validReaction, normalizedNickname,
   NICKNAME_WINDOW_MS, START_RATE_WINDOW_MS,
@@ -16,8 +18,10 @@ const uuid = (id: unknown): id is string =>
 const dayKst = (at: number) => new Date(at + 9 * 3600000).toISOString().slice(0, 10);
 
 export async function GET(r: Request) {
+  if (!isMobileRequest(r)) return json({ error: "모바일에서만 이용할 수 있습니다." }, 403);
   try {
     const db = env.DB!;
+    const cutoff = await mobileRankingCutoff(db);
     const today = dayKst(Date.now());
     const daily = new URL(r.url).searchParams.get("period") === "today";
     // Only explicitly registered, completed attempts enter public rankings.
@@ -25,19 +29,19 @@ export async function GET(r: Request) {
       `WITH best AS (
         SELECT *, ROW_NUMBER() OVER(PARTITION BY player ORDER BY reaction, finished) rn
         FROM attempts
-        WHERE nickname IS NOT NULL AND reaction BETWEEN 0 AND 30000 ${daily ? "AND day = ?" : ""}
+        WHERE nickname IS NOT NULL AND reaction BETWEEN 0 AND 30000 AND started >= ? ${daily ? "AND day = ?" : ""}
       ), ranked AS (
         SELECT nickname,reaction,player,RANK() OVER(ORDER BY reaction) rank
         FROM best WHERE rn=1
       )
       SELECT nickname,reaction,rank, CASE WHEN player=? THEN 1 ELSE 0 END mine
       FROM ranked ORDER BY reaction,rank LIMIT 50`
-    ).bind(...(daily ? [today, player(r) || ""] : [player(r) || ""])).all();
+    ).bind(...(daily ? [cutoff, today, player(r) || ""] : [cutoff, player(r) || ""])).all();
     const mine = await db.prepare(
       `SELECT MIN(reaction) best FROM attempts
-       WHERE player=? AND nickname IS NOT NULL AND reaction BETWEEN 0 AND 30000
+       WHERE player=? AND nickname IS NOT NULL AND reaction BETWEEN 0 AND 30000 AND started >= ?
        ${daily ? "AND day=?" : ""}`
-    ).bind(...(daily ? [player(r) || "", today] : [player(r) || ""])).first();
+    ).bind(...(daily ? [player(r) || "", cutoff, today] : [player(r) || "", cutoff])).first();
     return json({ rows: rows.results, best: mine?.best ?? null });
   } catch (error) {
     console.error("[fingerpractice] ranking GET failed", error);
@@ -46,6 +50,7 @@ export async function GET(r: Request) {
 }
 
 export async function POST(r: Request) {
+  if (!isMobileRequest(r)) return json({ error: "모바일에서만 플레이할 수 있습니다." }, 403);
   const origin = r.headers.get("origin");
   if ((origin && origin !== new URL(r.url).origin) ||
       r.headers.get("sec-fetch-site") === "cross-site") {
@@ -67,6 +72,7 @@ export async function POST(r: Request) {
 
   try {
     const db = env.DB!;
+    const cutoff = await mobileRankingCutoff(db);
     const pid = player(r);
     const now = Date.now();
 
@@ -75,7 +81,7 @@ export async function POST(r: Request) {
       // Single browser/device: limit burst challenge farming.
       const recent = await db.prepare(
         "SELECT COUNT(*) total, MAX(started) latest FROM attempts WHERE player=? AND started>=?"
-      ).bind(currentPlayer, now - START_RATE_WINDOW_MS)
+      ).bind(currentPlayer, Math.max(now - START_RATE_WINDOW_MS, cutoff))
         .first<{ total: number; latest: number | null }>();
       if (Number(recent?.total ?? 0) >= MAX_STARTS_PER_WINDOW ||
           (recent?.latest != null && now - Number(recent.latest) < START_COOLDOWN_MS)) {
@@ -105,7 +111,7 @@ export async function POST(r: Request) {
         `UPDATE attempts SET finished=?, reaction=?, day=?
          WHERE id=? AND player=? AND finished IS NULL
          AND started >= ? AND started <= ? RETURNING id`
-      ).bind(now, ms, dayKst(now), body.id, pid, window.earliest, window.latest).first();
+      ).bind(now, ms, dayKst(now), body.id, pid, Math.max(window.earliest, cutoff), window.latest).first();
       if (!row) return json({
         error: "도전 시간이 일치하지 않거나 이미 기록된 입력입니다. 다시 도전해 주세요.",
       }, 409);
@@ -119,8 +125,8 @@ export async function POST(r: Request) {
       const row = await db.prepare(
         `UPDATE attempts SET nickname=?
          WHERE id=? AND player=? AND finished IS NOT NULL
-         AND nickname IS NULL AND finished >= ? RETURNING id`
-      ).bind(nickname, body.id, pid, now - NICKNAME_WINDOW_MS).first();
+         AND nickname IS NULL AND finished >= ? AND started >= ? RETURNING id`
+      ).bind(nickname, body.id, pid, now - NICKNAME_WINDOW_MS, cutoff).first();
       if (!row) return json({
         error: "등록 가능한 검증 기록이 없거나 등록 시간이 지났습니다. 다시 도전해 주세요.",
       }, 409);
