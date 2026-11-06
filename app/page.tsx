@@ -66,7 +66,7 @@ export default function Home(){
   finally{saveLock.current=false;setSaving(false)}
  }
  async function share(){const text=`찰나의 해적 · 나의 0초 타이밍 기록 ${ms}ms. 10초의 기다림, 승부는 그다음 찰나.`;try{if(navigator.share)await navigator.share({title:'찰나의 해적',text,url:location.href});else{await navigator.clipboard.writeText(text+' '+location.href);setNotice('기록과 주소를 복사했습니다.')}}catch{setNotice('공유가 취소되었거나 지원되지 않습니다.')}}
- const label=phase==='waiting'?String(count).padStart(2,'0'):phase==='go'?'지금!':phase==='success'?String(ms):phase==='cancelled'?'다시 한번':phase==='loading'?'준비 중':'00';
+ const bubbleValue=phase==='waiting'?String(count):phase==='go'?'0':phase==='success'?String(ms):phase==='cancelled'?'—':'10';
  if(deviceStatus!=='allowed')return <main className="device-only-page">
   <header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span></header>
   <section className="device-only-panel" role={deviceStatus==='blocked'?'alert':'status'}>
@@ -83,9 +83,15 @@ export default function Home(){
  <div className="layout"><section className={'arena '+(phase==='go'?'ready':'')}>
  <div className="arena-top"><span><Crosshair size={15}/> PIRATE CHALLENGE</span><span className="live-dot">{active?'도전 진행 중':'10초 타이밍'}</span></div>
  <div className="play-area"><div className="status" aria-live="polite">{phase==='waiting'?'아직이에요. 0초까지 기다리세요.':phase==='go'?'지금 터치하세요!':phase==='success'?'기록 측정 완료':phase==='cancelled'?'도전이 취소되었습니다':'가장 짧은 순간을 잡아보세요'}</div>
- <button className={'target '+(active?'active':'')} aria-label="0초 이후 이 원을 터치하세요" disabled={!active} onPointerDown={e=>{e.preventDefault();if(e.isTrusted&&e.isPrimary&&e.pointerType==='touch')hit(performance.now())}}>
- <span className="target-inner"><span className={'digits '+(['cancelled','loading'].includes(phase)?'small':'')}>{label}</span><span className="unit">{phase==='success'?'MILLISECONDS':phase==='waiting'?'SECONDS LEFT':phase==='go'?'TOUCH NOW':'READY FOR ZERO'}</span></span></button>
- <p className="target-caption">{phase==='success'?`${(ms/1000).toFixed(3)}초, 당신이 잡아낸 찰나.`:'0초 이후 첫 터치부터 기록 · 101ms 하한 없음'}</p>
+ <div className="crystal-stage" role="group" aria-label="수정 터치 패널">
+  <img className="crystal-art" src="/crystal-touch-v3.webp" alt="푸른 수정과 샘, 수정 위에 카운트다운 말풍선" draggable={false} />
+  <div className={'crystal-clock '+(phase==='success'?'is-result ':'')+'clock-len-'+Math.min(5,bubbleValue.length)} aria-hidden="true">
+   <span>{bubbleValue}</span>
+  </div>
+  <button type="button" className="crystal-hitbox" aria-label="0초 이후 수정 그림을 터치하세요" disabled={!active}
+   onPointerDown={e=>{if(e.isTrusted&&e.isPrimary&&e.pointerType==='touch'){e.preventDefault();hit(performance.now())}}}/>
+ </div>
+ <p className="target-caption">{phase==='success'?`${(ms/1000).toFixed(3)}초, 당신이 잡아낸 찰나.`:'0초 이전 터치는 무시 · 수정 그림을 터치하세요'}</p>
  </div>
  {phase==='success'?<div className="result-actions"><div className="register"><input aria-label="랭킹 닉네임" placeholder="닉네임 (1~12자)" maxLength={24} value={nickname} disabled={saving||saved} onChange={e=>setNickname(e.target.value)}/><button onClick={save} disabled={saving||saved||verifying}>{saved?<><Check size={16}/> 등록 완료</>:verifying?'서버 기록 확인 중…':saving?'등록 중…':'랭킹 등록'}</button></div><div className="result-buttons"><button className="start" disabled={saving||verifying} onClick={start}><RotateCcw size={17}/> 다시 도전</button><button className="share" onClick={share} aria-label="기록 공유"><Share2 size={18}/></button></div><p className="registration-note">랭킹 등록은 측정 후 1분 안에 해주세요.</p></div>:<button className="start" onClick={start} disabled={active||phase==='loading'}>{active?'0초 이후 중앙 원을 터치하세요':phase==='loading'?'도전을 준비하고 있어요…':phase==='idle'?'도전 시작':'다시 도전'}{!active&&<ArrowRight size={19}/>}</button>}
  {notice&&<p role="status" className="notice">{notice}</p>}
