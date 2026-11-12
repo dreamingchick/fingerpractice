@@ -3,15 +3,33 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ArrowRight, RotateCcw, Trophy, Crosshair, X, Check, Share2, Smartphone } from 'lucide-react';
 import {supportsMobilePlay} from '../lib/mobile-access.mjs';
 import {judge, remaining, MIN_REACTION_MS} from '../lib/timing.mjs';
+const ARCADE_HOME = 'https://garu-arcade-hub.snugbrink3.chatgpt.site/';
+function cameFromArcade() {
+  let entered = new URLSearchParams(location.search).get('from') === 'garu-arcade';
+  let referringPage = document.referrer;
+  try {
+    if (window.parent !== window && window.parent.location.origin === window.location.origin) {
+      entered = entered || new URLSearchParams(window.parent.location.search).get('from') === 'garu-arcade';
+      referringPage = window.parent.document.referrer || referringPage;
+    }
+    entered = entered || (referringPage && new URL(referringPage).origin === 'https://garu-arcade-hub.snugbrink3.chatgpt.site');
+  } catch {}
+  try {
+    if (entered) sessionStorage.setItem('garu-arcade-entry', '1');
+    return Boolean(entered || sessionStorage.getItem('garu-arcade-entry') === '1');
+  } catch { return Boolean(entered); }
+}
 type Phase='idle'|'loading'|'waiting'|'go'|'success'|'cancelled';
 type Row={nickname:string,reaction:number,rank:number,mine:number};
 export default function Home(){
  const [phase,setPhase]=useState<Phase>('idle'), [count,setCount]=useState(10),[ms,setMs]=useState(0),[best,setBest]=useState<number|null>(null),[recent,setRecent]=useState<number[]>([]),[nickname,setNickname]=useState(''),[period,setPeriod]=useState('today'),[rows,setRows]=useState<Row[]>([]),[rankBest,setRankBest]=useState<number|null>(null),[rankStatus,setRankStatus]=useState('loading'),[notice,setNotice]=useState(''),[saved,setSaved]=useState(false),[saving,setSaving]=useState(false),[help,setHelp]=useState(false);
  const state=useRef<Phase>('idle'),deadline=useRef(0),attempt=useRef(''),frame=useRef(0),gen=useRef(0),saveLock=useRef(false);
  const [deviceStatus,setDeviceStatus]=useState<'checking'|'allowed'|'blocked'>('checking');
+ const [fromArcade,setFromArcade]=useState(false);
  const proof=useRef<Promise<boolean>|null>(null);
  const [verifying,setVerifying]=useState(false);
  useEffect(()=>{
+  setFromArcade(cameFromArcade());
   const coarse=window.matchMedia?.('(pointer: coarse)').matches ?? false;
   const allowed=supportsMobilePlay({userAgent:navigator.userAgent,touchPoints:navigator.maxTouchPoints||0,coarsePointer:coarse});
   setDeviceStatus(allowed?'allowed':'blocked');
@@ -68,16 +86,16 @@ export default function Home(){
  async function share(){const text=`찰나의 해적 · 나의 0초 타이밍 기록 ${ms}ms. 10초의 기다림, 승부는 그다음 찰나.`;try{if(navigator.share)await navigator.share({title:'찰나의 해적',text,url:location.href});else{await navigator.clipboard.writeText(text+' '+location.href);setNotice('기록과 주소를 복사했습니다.')}}catch{setNotice('공유가 취소되었거나 지원되지 않습니다.')}}
  const bubbleValue=phase==='waiting'?String(count):phase==='go'?'0':phase==='success'?String(ms):phase==='cancelled'?'—':'10';
  if(deviceStatus!=='allowed')return <main className="device-only-page">
-  <header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span></header>
+  <header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span>{fromArcade&&<a className="arcade-home-header" href={ARCADE_HOME}>← 대문 홈</a>}</header>
   <section className="device-only-panel" role={deviceStatus==='blocked'?'alert':'status'}>
    <div className="device-only-icon"><Smartphone size={40}/></div>
    {deviceStatus==='checking'
     ? <><h1>접속 환경을 확인하고 있습니다.</h1><p>기기 유형을 확인한 뒤 게임 화면을 표시합니다.</p></>
     : <><div className="device-only-eyebrow">MOBILE ONLY</div><h1>이 게임은 모바일에서만 플레이할 수 있습니다.</h1><p>스마트폰 또는 태블릿의 터치 브라우저로 접속해 주세요.<br/>PC에서는 게임 플레이와 랭킹 등록을 이용할 수 없습니다.</p></>}
   </section>
-  <footer><span>찰나의 해적</span><a href="https://garu-arcade-hub.snugbrink3.chatgpt.site/#install-guide" target="_blank" rel="noopener noreferrer">오락실 앱 설치 ↗</a><p>작은 숫자, 커다란 승부.</p></footer>
+  <footer><span>찰나의 해적</span><a href={fromArcade?ARCADE_HOME:ARCADE_HOME+'#install-guide'} target={fromArcade?undefined:'_blank'} rel={fromArcade?undefined:'noopener noreferrer'}>{fromArcade?'← 대문 홈으로':'오락실 앱 설치 ↗'}</a><p>작은 숫자, 커다란 승부.</p></footer>
  </main>;
- return <main><header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span><button className="help" onClick={()=>setHelp(!help)}>플레이 방법 <span>↗</span></button></header>
+ return <main><header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span>{fromArcade&&<a className="arcade-home-header" href={ARCADE_HOME}>← 대문 홈</a>}<button className="help" onClick={()=>setHelp(!help)}>플레이 방법 <span>↗</span></button></header>
  <div className="intro"><div className="eyebrow"><span/> TEN SECONDS. ONE MOMENT.</div><h1>찰나의 <em>해적</em></h1><p>0초가 되는 순간, 단 한 번의 터치.<br className="mobile"/> 당신의 타이밍은 몇 밀리초인가요?</p></div>
  {help&&<aside className="instructions"><button onClick={()=>setHelp(false)} aria-label="설명 닫기"><X size={18}/></button><strong>기다리고, 한 번만 터치하세요.</strong><p>도전 시작 → 10초 카운트다운 → 0초 이후 중앙 원 터치. 0초 이전의 터치는 무시되고, 0초부터 새로 누른 첫 터치가 기록됩니다. 최소 101ms 제한은 없으며 0ms 기록도 유효합니다. 기록은 0초를 기준으로 밀리초 단위로 계산합니다. 미리 누르고 있어도 기록되지 않으며, 0초 이후 새로 눌러야 합니다. 화면을 벗어나면 취소됩니다. 기록이 작을수록 높은 순위입니다. 고정 카운트다운이므로 예측하는 타이밍 감각도 포함됩니다.</p></aside>}
  <div className="layout"><section className={'arena '+(phase==='go'?'ready':'')}>
@@ -99,6 +117,6 @@ export default function Home(){
  </section>
  <aside className="side"><section className="personal"><div className="section-label">MY PERSONAL BEST <Crosshair size={16}/></div><div className="best">{best===null?'—':best}<span>ms</span></div><p>{best===null?'첫 번째 기록을 남겨보세요.':'이 기기에 저장된 나의 가장 빠른 순간'}</p><div className="recent-title">최근 기록 <span>LAST 5</span></div><div className="recent">{recent.length?recent.map((r,i)=><span key={i}>{r}<small>ms</small></span>):<span className="empty-recent">아직 도전 기록이 없어요</span>}</div></section>
  <section className="leaderboard"><div className="rank-heading"><h2><Trophy size={18}/> 명예의 전당</h2><button onClick={()=>ranks()} aria-label="랭킹 새로고침"><RotateCcw size={15}/></button></div><div className="tabs"><button className={period==='today'?'selected':''} onClick={()=>setPeriod('today')}>오늘의 기록</button><button className={period==='all'?'selected':''} onClick={()=>setPeriod('all')}>전체 기록</button></div><div className="table-head"><span>순위 / 도전자</span><span>기록</span></div><div className="rank-rows">{rankStatus==='loading'?<div className="rank-empty">기록을 불러오고 있어요…</div>:rankStatus==='error'?<div className="rank-empty">랭킹에 연결하지 못했어요.<button onClick={()=>ranks()}>다시 불러오기 ↗</button></div>:rows.length?rows.map((r,i)=><div className={'rank-row '+(r.mine?'mine':'')} key={i}><span className={'rank-number n'+r.rank}>{String(r.rank).padStart(2,'0')}</span><span className="rank-name">{r.nickname}{!!r.mine&&<small>나</small>}</span><b>{r.reaction}<small>ms</small></b></div>):<div className="rank-empty"><Trophy size={26}/><p>아직 기록이 없어요.<br/>첫 번째 도전자가 되어보세요.</p></div>}</div><div className="rank-footer">{rankBest===null?'가장 빠른 순간이 여기에 남습니다.':`내 등록 최고 기록 ${rankBest}ms`}</div></section></aside></div>
- <footer><span>찰나의 해적</span><a href="https://garu-arcade-hub.snugbrink3.chatgpt.site/#install-guide" target="_blank" rel="noopener noreferrer">오락실 앱 설치 ↗</a><p>작은 숫자, 커다란 승부. <span>일간 랭킹은 한국 시간 00시에 초기화됩니다.</span></p><span className="footer-mark">MADE FOR THE MOMENT <ArrowUpRight size={14}/></span></footer>
+ <footer><span>찰나의 해적</span><a href={fromArcade?ARCADE_HOME:ARCADE_HOME+'#install-guide'} target={fromArcade?undefined:'_blank'} rel={fromArcade?undefined:'noopener noreferrer'}>{fromArcade?'← 대문 홈으로':'오락실 앱 설치 ↗'}</a><p>작은 숫자, 커다란 승부. <span>일간 랭킹은 한국 시간 00시에 초기화됩니다.</span></p><span className="footer-mark">MADE FOR THE MOMENT <ArrowUpRight size={14}/></span></footer>
  </main>
 }
