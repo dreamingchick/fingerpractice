@@ -25,11 +25,11 @@ export default function Home(){
  const [phase,setPhase]=useState<Phase>('idle'), [count,setCount]=useState(10),[ms,setMs]=useState(0),[best,setBest]=useState<number|null>(null),[recent,setRecent]=useState<number[]>([]),[nickname,setNickname]=useState(''),[period,setPeriod]=useState('today'),[rows,setRows]=useState<Row[]>([]),[rankBest,setRankBest]=useState<number|null>(null),[rankStatus,setRankStatus]=useState('loading'),[notice,setNotice]=useState(''),[saved,setSaved]=useState(false),[saving,setSaving]=useState(false),[help,setHelp]=useState(false);
  const state=useRef<Phase>('idle'),deadline=useRef(0),attempt=useRef(''),frame=useRef(0),gen=useRef(0),saveLock=useRef(false);
  const [deviceStatus,setDeviceStatus]=useState<'checking'|'allowed'|'blocked'>('checking');
- const [fromArcade,setFromArcade]=useState(false);
+ const [fromArcade,setFromArcade]=useState(true);
  const proof=useRef<Promise<boolean>|null>(null);
  const [verifying,setVerifying]=useState(false);
  useEffect(()=>{
-  setFromArcade(cameFromArcade());
+  setFromArcade(true);
   const coarse=window.matchMedia?.('(pointer: coarse)').matches ?? false;
   const allowed=supportsMobilePlay({userAgent:navigator.userAgent,touchPoints:navigator.maxTouchPoints||0,coarsePointer:coarse});
   setDeviceStatus(allowed?'allowed':'blocked');
