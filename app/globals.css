@@ -91,3 +91,6 @@
 @media(max-width:350px) {
   .crystal-stage {width: min(75vw, 265px);}
 }
+
+/* Return to the arcade when launched through the hub. */
+.arcade-home-header{margin-left:auto;white-space:nowrap;display:inline-flex;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;font-size:12px;font-weight:700}
