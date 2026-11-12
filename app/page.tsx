@@ -75,7 +75,7 @@ export default function Home(){
     ? <><h1>접속 환경을 확인하고 있습니다.</h1><p>기기 유형을 확인한 뒤 게임 화면을 표시합니다.</p></>
     : <><div className="device-only-eyebrow">MOBILE ONLY</div><h1>이 게임은 모바일에서만 플레이할 수 있습니다.</h1><p>스마트폰 또는 태블릿의 터치 브라우저로 접속해 주세요.<br/>PC에서는 게임 플레이와 랭킹 등록을 이용할 수 없습니다.</p></>}
   </section>
-  <footer><span>찰나의 해적</span><p>작은 숫자, 커다란 승부.</p></footer>
+  <footer><span>찰나의 해적</span><a href="https://garu-arcade-hub.snugbrink3.chatgpt.site/#install-guide" target="_blank" rel="noopener noreferrer">오락실 앱 설치 ↗</a><p>작은 숫자, 커다란 승부.</p></footer>
  </main>;
  return <main><header><a className="wordmark" href="/" aria-label="찰나의 해적 홈">찰나의 <span>해적</span><i/></a><span className="edition">THE MOMENT PIRATE</span><button className="help" onClick={()=>setHelp(!help)}>플레이 방법 <span>↗</span></button></header>
  <div className="intro"><div className="eyebrow"><span/> TEN SECONDS. ONE MOMENT.</div><h1>찰나의 <em>해적</em></h1><p>0초가 되는 순간, 단 한 번의 터치.<br className="mobile"/> 당신의 타이밍은 몇 밀리초인가요?</p></div>
@@ -99,6 +99,6 @@ export default function Home(){
  </section>
  <aside className="side"><section className="personal"><div className="section-label">MY PERSONAL BEST <Crosshair size={16}/></div><div className="best">{best===null?'—':best}<span>ms</span></div><p>{best===null?'첫 번째 기록을 남겨보세요.':'이 기기에 저장된 나의 가장 빠른 순간'}</p><div className="recent-title">최근 기록 <span>LAST 5</span></div><div className="recent">{recent.length?recent.map((r,i)=><span key={i}>{r}<small>ms</small></span>):<span className="empty-recent">아직 도전 기록이 없어요</span>}</div></section>
  <section className="leaderboard"><div className="rank-heading"><h2><Trophy size={18}/> 명예의 전당</h2><button onClick={()=>ranks()} aria-label="랭킹 새로고침"><RotateCcw size={15}/></button></div><div className="tabs"><button className={period==='today'?'selected':''} onClick={()=>setPeriod('today')}>오늘의 기록</button><button className={period==='all'?'selected':''} onClick={()=>setPeriod('all')}>전체 기록</button></div><div className="table-head"><span>순위 / 도전자</span><span>기록</span></div><div className="rank-rows">{rankStatus==='loading'?<div className="rank-empty">기록을 불러오고 있어요…</div>:rankStatus==='error'?<div className="rank-empty">랭킹에 연결하지 못했어요.<button onClick={()=>ranks()}>다시 불러오기 ↗</button></div>:rows.length?rows.map((r,i)=><div className={'rank-row '+(r.mine?'mine':'')} key={i}><span className={'rank-number n'+r.rank}>{String(r.rank).padStart(2,'0')}</span><span className="rank-name">{r.nickname}{!!r.mine&&<small>나</small>}</span><b>{r.reaction}<small>ms</small></b></div>):<div className="rank-empty"><Trophy size={26}/><p>아직 기록이 없어요.<br/>첫 번째 도전자가 되어보세요.</p></div>}</div><div className="rank-footer">{rankBest===null?'가장 빠른 순간이 여기에 남습니다.':`내 등록 최고 기록 ${rankBest}ms`}</div></section></aside></div>
- <footer><span>찰나의 해적</span><p>작은 숫자, 커다란 승부. <span>일간 랭킹은 한국 시간 00시에 초기화됩니다.</span></p><span className="footer-mark">MADE FOR THE MOMENT <ArrowUpRight size={14}/></span></footer>
+ <footer><span>찰나의 해적</span><a href="https://garu-arcade-hub.snugbrink3.chatgpt.site/#install-guide" target="_blank" rel="noopener noreferrer">오락실 앱 설치 ↗</a><p>작은 숫자, 커다란 승부. <span>일간 랭킹은 한국 시간 00시에 초기화됩니다.</span></p><span className="footer-mark">MADE FOR THE MOMENT <ArrowUpRight size={14}/></span></footer>
  </main>
 }
