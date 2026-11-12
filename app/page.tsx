@@ -12,7 +12,7 @@ function cameFromArcade() {
       entered = entered || new URLSearchParams(window.parent.location.search).get('from') === 'garu-arcade';
       referringPage = window.parent.document.referrer || referringPage;
     }
-    entered = entered || (referringPage && new URL(referringPage).origin === 'https://garu-arcade-hub.snugbrink3.chatgpt.site');
+    entered = entered || (Boolean(referringPage) && new URL(referringPage).origin === 'https://garu-arcade-hub.snugbrink3.chatgpt.site');
   } catch {}
   try {
     if (entered) sessionStorage.setItem('garu-arcade-entry', '1');
